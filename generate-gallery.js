@@ -232,8 +232,6 @@ function generateDataFile(media) {
 // Generated: ${new Date().toISOString()}
 
 const IMAGES = ${JSON.stringify(media, null, 2)};
-
-const IMAGES_PER_PAGE = ${IMAGES_PER_PAGE};
 `;
 
   fs.writeFileSync(path.join(ROOT_DIR, OUTPUT_DATA_FILE), content);
@@ -251,6 +249,11 @@ function generateHtmlFile() {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Image Gallery</title>
   <style>
+    :root {
+      --cols: 5;
+      --rows: 3;
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -261,7 +264,8 @@ function generateHtmlFile() {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: #1a1a2e;
       color: #eee;
-      min-height: 100vh;
+      height: 100vh;
+      overflow: hidden;
     }
 
     .header {
@@ -335,9 +339,12 @@ function generateHtmlFile() {
 
     .gallery {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      grid-template-columns: repeat(var(--cols), 1fr);
+      grid-template-rows: repeat(var(--rows), 1fr);
       gap: 1rem;
-      padding: 2rem;
+      padding: 1rem;
+      height: calc(100vh - 60px);
+      overflow: hidden;
     }
 
     .thumbnail {
@@ -592,6 +599,11 @@ function generateHtmlFile() {
 
   <script src="images-data.js"></script>
   <script>
+    // Size presets and layout state
+    const SIZE_PRESETS = { S: 130, M: 200, L: 300 };
+    let sizePreset = 'M';
+    let itemsPerPage = 15;
+
     // State
     let currentPage = 0;
     let currentLightboxIndex = -1;
@@ -599,8 +611,10 @@ function generateHtmlFile() {
     let cursorIndex = -1;  // -1 = cursor hidden
     let lastCursorPos = 0;  // Remember position within page
 
-    // Calculate total pages
-    const totalPages = Math.ceil(IMAGES.length / IMAGES_PER_PAGE);
+    // Dynamic total pages
+    function getTotalPages() {
+      return Math.ceil(IMAGES.length / itemsPerPage);
+    }
 
     // Format bytes
     function formatBytes(bytes) {
@@ -632,11 +646,74 @@ function generateHtmlFile() {
       return 'thumbnails/' + hash[0] + '/' + hash[1] + '/' + hash + thumbExt;
     }
 
+    // Layout calculation
+    function calculateLayout() {
+      const header = document.querySelector('.header');
+      const headerHeight = header ? header.offsetHeight : 60;
+      const gap = 16;
+      const padding = 32;
+      const viewH = window.innerHeight - headerHeight - padding;
+      const viewW = window.innerWidth - padding;
+
+      const base = SIZE_PRESETS[sizePreset];
+      const cols = Math.max(1, Math.floor((viewW + gap) / (base + gap)));
+      const rows = Math.max(1, Math.floor((viewH + gap) / (base + gap)));
+
+      return { cols, rows, perPage: cols * rows };
+    }
+
+    function debounce(fn, ms) {
+      let timeout;
+      return (...args) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => fn(...args), ms);
+      };
+    }
+
+    function onResize() {
+      const oldPerPage = itemsPerPage;
+      const oldCols = getGridColumns();
+      const oldRows = Math.ceil(oldPerPage / oldCols) || 1;
+      const firstVisibleIndex = currentPage * oldPerPage;
+
+      const layout = calculateLayout();
+      const newPerPage = layout.perPage;
+
+      // Proportional cursor repositioning when increasing size (fewer items)
+      if (cursorIndex >= 0 && newPerPage < oldPerPage) {
+        const posInOldPage = cursorIndex % oldPerPage;
+        const oldCol = posInOldPage % oldCols;
+        const oldRow = Math.floor(posInOldPage / oldCols);
+
+        const colRatio = oldCols > 1 ? oldCol / (oldCols - 1) : 0;
+        const rowRatio = oldRows > 1 ? oldRow / (oldRows - 1) : 0;
+
+        const newCol = Math.min(Math.round(colRatio * (layout.cols - 1)), layout.cols - 1);
+        const newRow = Math.min(Math.round(rowRatio * (layout.rows - 1)), layout.rows - 1);
+
+        const newPosInPage = newRow * layout.cols + newCol;
+        const cursorPage = Math.floor(cursorIndex / oldPerPage);
+        cursorIndex = Math.min(cursorPage * newPerPage + newPosInPage, IMAGES.length - 1);
+      }
+
+      itemsPerPage = newPerPage;
+
+      // Recalculate page to keep same items visible
+      currentPage = Math.min(Math.floor(firstVisibleIndex / itemsPerPage), getTotalPages() - 1);
+      if (currentPage < 0) currentPage = 0;
+
+      // Update CSS variables
+      document.documentElement.style.setProperty('--cols', layout.cols);
+      document.documentElement.style.setProperty('--rows', layout.rows);
+
+      renderGallery();
+    }
+
     // Render the gallery for current page
     function renderGallery() {
       const gallery = document.getElementById('gallery');
-      const start = currentPage * IMAGES_PER_PAGE;
-      const end = Math.min(start + IMAGES_PER_PAGE, IMAGES.length);
+      const start = currentPage * itemsPerPage;
+      const end = Math.min(start + itemsPerPage, IMAGES.length);
       const pageMedia = IMAGES.slice(start, end);
 
       if (IMAGES.length === 0) {
@@ -670,7 +747,7 @@ function generateHtmlFile() {
       }).join('');
 
       // Update page info
-      document.getElementById('page-info').textContent = \`Page \${currentPage + 1} of \${totalPages}\`;
+      document.getElementById('page-info').textContent = \`Page \${currentPage + 1} of \${getTotalPages()}\`;
 
       // Show image/video counts
       const imageCount = IMAGES.filter(m => m.type === 'image').length;
@@ -680,13 +757,13 @@ function generateHtmlFile() {
 
       // Update button states
       document.getElementById('prev-btn').disabled = currentPage === 0;
-      document.getElementById('next-btn').disabled = currentPage >= totalPages - 1;
+      document.getElementById('next-btn').disabled = currentPage >= getTotalPages() - 1;
       updateCursor();
     }
 
     // Navigation
     function nextPage() {
-      if (currentPage < totalPages - 1) {
+      if (currentPage < getTotalPages() - 1) {
         currentPage++;
         renderGallery();
         window.scrollTo(0, 0);
@@ -703,6 +780,10 @@ function generateHtmlFile() {
 
     // Lightbox - always uses original image
     function openLightbox(index) {
+      if (cursorIndex >= 0) {
+        cursorIndex = index;
+        updateCursor();
+      }
       currentLightboxIndex = index;
       lightboxActive = true;
       updateLightbox();
@@ -789,7 +870,7 @@ function generateHtmlFile() {
 
     function updateCursor() {
       document.querySelectorAll('.thumbnail').forEach((el, i) => {
-        el.classList.toggle('cursor', currentPage * IMAGES_PER_PAGE + i === cursorIndex);
+        el.classList.toggle('cursor', currentPage * itemsPerPage + i === cursorIndex);
       });
     }
 
@@ -799,7 +880,7 @@ function generateHtmlFile() {
       const next = cursorIndex + delta;
       if (next >= 0 && next < IMAGES.length) {
         cursorIndex = next;
-        const targetPage = Math.floor(cursorIndex / IMAGES_PER_PAGE);
+        const targetPage = Math.floor(cursorIndex / itemsPerPage);
         if (targetPage !== currentPage) {
           currentPage = targetPage;
           renderGallery();
@@ -835,24 +916,27 @@ function generateHtmlFile() {
           const oldPage = currentPage;
           e.key === 'ArrowRight' ? nextPage() : prevPage();
           if (cursorIndex >= 0 && currentPage !== oldPage) {
-            const posInPage = cursorIndex % IMAGES_PER_PAGE;
-            cursorIndex = Math.min(currentPage * IMAGES_PER_PAGE + posInPage, IMAGES.length - 1);
+            const posInPage = cursorIndex % itemsPerPage;
+            cursorIndex = Math.min(currentPage * itemsPerPage + posInPage, IMAGES.length - 1);
             updateCursor();
           }
         } else if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
           e.preventDefault();
           if (cursorIndex < 0) {
-            cursorIndex = Math.min(currentPage * IMAGES_PER_PAGE + lastCursorPos, IMAGES.length - 1);
+            cursorIndex = Math.min(currentPage * itemsPerPage + lastCursorPos, IMAGES.length - 1);
             updateCursor();
           } else {
             moveCursor(e.key);
           }
         } else if (e.key === 'Escape' && cursorIndex >= 0) {
-          lastCursorPos = cursorIndex % IMAGES_PER_PAGE;
+          lastCursorPos = cursorIndex % itemsPerPage;
           cursorIndex = -1;
           updateCursor();
         } else if (e.key === 'Enter' && cursorIndex >= 0) {
           openLightbox(cursorIndex);
+        } else if ('sml'.includes(e.key.toLowerCase())) {
+          sizePreset = e.key.toUpperCase();
+          onResize();
         }
       }
     });
@@ -864,8 +948,11 @@ function generateHtmlFile() {
       }
     });
 
-    // Initial render
-    renderGallery();
+    // Resize handler
+    window.addEventListener('resize', debounce(onResize, 100));
+
+    // Initial layout and render
+    onResize();
   </script>
 </body>
 </html>

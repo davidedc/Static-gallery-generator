@@ -61,6 +61,7 @@ This creates:
 |-----|--------|
 | `↑` `↓` `←` `→` | Navigate thumbnails with cursor |
 | `Shift` + `←` `→` | Previous/Next page |
+| `S` / `M` / `L` | Small/Medium/Large thumbnail size |
 | `Enter` | Open selected thumbnail |
 | `Escape` | Hide cursor / Close lightbox |
 | `←` `→` (in lightbox) | Previous/Next item |
