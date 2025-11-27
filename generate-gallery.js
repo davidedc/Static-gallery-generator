@@ -355,6 +355,10 @@ function generateHtmlFile() {
       box-shadow: 0 4px 20px rgba(233, 69, 96, 0.3);
     }
 
+    .thumbnail.cursor {
+      box-shadow: 0 0 0 6px #e94560;
+    }
+
     .thumbnail img {
       width: 100%;
       height: 100%;
@@ -592,6 +596,8 @@ function generateHtmlFile() {
     let currentPage = 0;
     let currentLightboxIndex = -1;
     let lightboxActive = false;
+    let cursorIndex = -1;  // -1 = cursor hidden
+    let lastCursorPos = 0;  // Remember position within page
 
     // Calculate total pages
     const totalPages = Math.ceil(IMAGES.length / IMAGES_PER_PAGE);
@@ -675,6 +681,7 @@ function generateHtmlFile() {
       // Update button states
       document.getElementById('prev-btn').disabled = currentPage === 0;
       document.getElementById('next-btn').disabled = currentPage >= totalPages - 1;
+      updateCursor();
     }
 
     // Navigation
@@ -769,6 +776,39 @@ function generateHtmlFile() {
       }
     }
 
+    // Cursor navigation helpers
+    function getGridColumns() {
+      const items = document.querySelectorAll('.thumbnail');
+      if (items.length < 2) return 1;
+      const firstTop = items[0].offsetTop;
+      for (let i = 1; i < items.length; i++) {
+        if (items[i].offsetTop !== firstTop) return i;
+      }
+      return items.length;
+    }
+
+    function updateCursor() {
+      document.querySelectorAll('.thumbnail').forEach((el, i) => {
+        el.classList.toggle('cursor', currentPage * IMAGES_PER_PAGE + i === cursorIndex);
+      });
+    }
+
+    function moveCursor(key) {
+      const cols = getGridColumns();
+      const delta = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols }[key];
+      const next = cursorIndex + delta;
+      if (next >= 0 && next < IMAGES.length) {
+        cursorIndex = next;
+        const targetPage = Math.floor(cursorIndex / IMAGES_PER_PAGE);
+        if (targetPage !== currentPage) {
+          currentPage = targetPage;
+          renderGallery();
+          window.scrollTo(0, 0);
+        }
+        updateCursor();
+      }
+    }
+
     // Keyboard navigation
     document.addEventListener('keydown', (e) => {
       if (lightboxActive) {
@@ -790,10 +830,29 @@ function generateHtmlFile() {
           }
         }
       } else {
-        if (e.key === 'ArrowRight') {
-          nextPage();
-        } else if (e.key === 'ArrowLeft') {
-          prevPage();
+        if (e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+          e.preventDefault();
+          const oldPage = currentPage;
+          e.key === 'ArrowRight' ? nextPage() : prevPage();
+          if (cursorIndex >= 0 && currentPage !== oldPage) {
+            const posInPage = cursorIndex % IMAGES_PER_PAGE;
+            cursorIndex = Math.min(currentPage * IMAGES_PER_PAGE + posInPage, IMAGES.length - 1);
+            updateCursor();
+          }
+        } else if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
+          e.preventDefault();
+          if (cursorIndex < 0) {
+            cursorIndex = Math.min(currentPage * IMAGES_PER_PAGE + lastCursorPos, IMAGES.length - 1);
+            updateCursor();
+          } else {
+            moveCursor(e.key);
+          }
+        } else if (e.key === 'Escape' && cursorIndex >= 0) {
+          lastCursorPos = cursorIndex % IMAGES_PER_PAGE;
+          cursorIndex = -1;
+          updateCursor();
+        } else if (e.key === 'Enter' && cursorIndex >= 0) {
+          openLightbox(cursorIndex);
         }
       }
     });

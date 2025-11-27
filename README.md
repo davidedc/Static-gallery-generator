@@ -59,10 +59,12 @@ This creates:
 
 | Key | Action |
 |-----|--------|
-| `←` `→` | Previous/Next page |
+| `↑` `↓` `←` `→` | Navigate thumbnails with cursor |
+| `Shift` + `←` `→` | Previous/Next page |
+| `Enter` | Open selected thumbnail |
+| `Escape` | Hide cursor / Close lightbox |
 | `←` `→` (in lightbox) | Previous/Next item |
 | `Space` (in lightbox) | Pause/unpause video |
-| `Escape` | Close lightbox |
 
 ### Utilities
 
