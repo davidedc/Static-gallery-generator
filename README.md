@@ -61,6 +61,7 @@ This creates:
 |-----|--------|
 | `←` `→` | Previous/Next page |
 | `←` `→` (in lightbox) | Previous/Next item |
+| `Space` (in lightbox) | Pause/unpause video |
 | `Escape` | Close lightbox |
 
 ### Utilities

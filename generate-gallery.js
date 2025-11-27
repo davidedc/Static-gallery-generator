@@ -778,6 +778,16 @@ function generateHtmlFile() {
           lightboxNext();
         } else if (e.key === 'ArrowLeft') {
           lightboxPrev();
+        } else if (e.key === ' ' || e.code === 'Space') {
+          e.preventDefault();
+          const video = document.getElementById('lightbox-video');
+          if (video.style.display !== 'none') {
+            if (video.paused) {
+              video.play();
+            } else {
+              video.pause();
+            }
+          }
         }
       } else {
         if (e.key === 'ArrowRight') {
