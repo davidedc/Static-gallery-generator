@@ -1,4 +1,4 @@
-# Paginated Image Viewer
+# Static Gallery Generator
 
 <p align="center">
   <img src=".github/demo.gif" alt="Gallery Demo" width="600">
