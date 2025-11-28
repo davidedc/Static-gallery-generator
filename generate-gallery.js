@@ -12,7 +12,7 @@ program
   .description('Generate a static HTML gallery from images and videos')
   .option('-i, --input <dir>', 'Source directory to scan for media', process.cwd())
   .option('-o, --output <dir>', 'Output directory for gallery files (defaults to input directory)')
-  .option('-t, --title <text>', 'Gallery title', 'Image Gallery')
+  .option('-t, --title <text>', 'Gallery title', 'Gallery')
   .parse();
 
 const options = program.opts();

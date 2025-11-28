@@ -276,7 +276,7 @@ node generate-gallery.js [options]
 | `--help` | `-h` | Display help message | — |
 | `--input <dir>` | `-i` | Source directory to scan for media | Current working directory |
 | `--output <dir>` | `-o` | Output directory for gallery files | Same as input directory |
-| `--title <text>` | `-t` | Gallery title (browser tab and header) | "Image Gallery" |
+| `--title <text>` | `-t` | Gallery title (browser tab and header) | "Gallery" |
 
 ### 13.3 Examples
 ```bash
